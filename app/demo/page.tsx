@@ -13,6 +13,7 @@ type ExtractResponse = {
   addresses: DeliveryAddress[];
   route: DeliveryAddress[];
   startAddress?: DeliveryAddress;
+  includeReturnToStart?: boolean;
   optimizationStrategy: OptimizedRoute["strategy"];
   mapsUrl: string;
   message: string;
@@ -22,6 +23,7 @@ type ExtractResponse = {
 type InputMode = "scan" | "manual";
 
 const START_ADDRESS_STORAGE_KEY = "assistant-livraison-start-address";
+const INCLUDE_RETURN_STORAGE_KEY = "assistant-livraison-include-return";
 const LAST_ROUTE_STORAGE_KEY = "assistant-livraison-last-route";
 const LAST_ROUTE_TTL_MS = 48 * 60 * 60 * 1000;
 
@@ -40,6 +42,7 @@ export default function DemoPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCompressing, setIsCompressing] = useState(false);
   const [hasSavedRoute, setHasSavedRoute] = useState(false);
+  const [includeReturnToStart, setIncludeReturnToStart] = useState(true);
   const manualAddressCount = manualAddresses
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -47,12 +50,20 @@ export default function DemoPage() {
 
   useEffect(() => {
     setStartAddress(localStorage.getItem(START_ADDRESS_STORAGE_KEY) ?? "");
+    setIncludeReturnToStart(
+      localStorage.getItem(INCLUDE_RETURN_STORAGE_KEY) !== "false",
+    );
     setHasSavedRoute(Boolean(getSavedRoute()));
   }, []);
 
   function updateStartAddress(value: string) {
     setStartAddress(value);
     localStorage.setItem(START_ADDRESS_STORAGE_KEY, value);
+  }
+
+  function updateIncludeReturnToStart(value: boolean) {
+    setIncludeReturnToStart(value);
+    localStorage.setItem(INCLUDE_RETURN_STORAGE_KEY, String(value));
   }
 
   async function handleFileAdd(nextFile: File | null) {
@@ -183,8 +194,13 @@ export default function DemoPage() {
         throw new Error(payload.error ?? "Analyse impossible.");
       }
 
-      setResult(payload);
-      saveRoute(payload);
+      const nextResult = {
+        ...payload,
+        includeReturnToStart,
+      };
+
+      setResult(nextResult);
+      saveRoute(nextResult);
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -216,6 +232,20 @@ export default function DemoPage() {
                 value={startAddress}
                 onChange={updateStartAddress}
               />
+
+              <label className="mt-4 flex items-center justify-between gap-4 rounded-md bg-slatecard px-3 py-3">
+                <span className="text-sm font-bold text-ink">
+                  Retour au depart
+                </span>
+                <input
+                  type="checkbox"
+                  checked={includeReturnToStart}
+                  onChange={(event) =>
+                    updateIncludeReturnToStart(event.target.checked)
+                  }
+                  className="h-5 w-5 accent-route"
+                />
+              </label>
 
               <div className="mt-5 grid grid-cols-2 gap-2 rounded-md bg-slatecard p-1">
                 <button
@@ -304,6 +334,7 @@ export default function DemoPage() {
             <RouteResult
               initialRoute={result.route}
               startAddress={result.startAddress}
+              includeReturnToStart={result.includeReturnToStart ?? true}
               onRouteChange={(route) => {
                 const nextResult = { ...result, route };
                 setResult(nextResult);

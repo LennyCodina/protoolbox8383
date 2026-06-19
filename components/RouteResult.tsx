@@ -7,6 +7,7 @@ import type { DeliveryAddress } from "@/lib/routeOptimizer";
 type RouteResultProps = {
   initialRoute: DeliveryAddress[];
   startAddress?: DeliveryAddress;
+  includeReturnToStart?: boolean;
   onRouteChange?: (route: DeliveryAddress[]) => void;
 };
 
@@ -20,6 +21,7 @@ function relabelAddressIds(route: DeliveryAddress[]) {
 export function RouteResult({
   initialRoute,
   startAddress,
+  includeReturnToStart = true,
   onRouteChange,
 }: RouteResultProps) {
   const [optimizedRoute] = useState(() => relabelAddressIds(initialRoute));
@@ -28,9 +30,15 @@ export function RouteResult({
   const mapsUrl = useMemo(
     () =>
       buildGoogleMapsLink(
-        startAddress ? [startAddress, ...route, startAddress] : route,
+        startAddress
+          ? [
+              startAddress,
+              ...route,
+              ...(includeReturnToStart ? [startAddress] : []),
+            ]
+          : route,
       ),
-    [route, startAddress],
+    [route, startAddress, includeReturnToStart],
   );
 
   function updateRoute(nextRoute: DeliveryAddress[]) {
@@ -71,7 +79,9 @@ export function RouteResult({
       ? `Depart: ${startAddress.formattedLabel ?? startAddress.label}\n`
       : "";
     const returnText = startAddress
-      ? `\nRetour: ${startAddress.formattedLabel ?? startAddress.label}`
+      ? includeReturnToStart
+        ? `\nRetour: ${startAddress.formattedLabel ?? startAddress.label}`
+        : ""
       : "";
 
     await navigator.clipboard.writeText(

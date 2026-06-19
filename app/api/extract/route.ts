@@ -176,7 +176,7 @@ export async function POST(request: Request) {
     const optimizedRoute = optimizeRoute(addresses, startAddress);
     const mapsUrl = buildGoogleMapsLink(
       startAddress
-        ? [startAddress, ...optimizedRoute.addresses, startAddress]
+        ? [startAddress, ...optimizedRoute.addresses]
         : optimizedRoute.addresses,
     );
 

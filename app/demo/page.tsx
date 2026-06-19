@@ -65,7 +65,7 @@ export default function DemoPage() {
     setAnalysisCount(Number(localStorage.getItem(DEMO_USAGE_STORAGE_KEY) ?? "0"));
   }, []);
 
-  function unlockDemo(event: FormEvent<HTMLFormElement>) {
+  async function unlockDemo(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmedCode = demoAccessCode.trim();
 
@@ -74,10 +74,31 @@ export default function DemoPage() {
       return;
     }
 
-    localStorage.setItem(DEMO_ACCESS_STORAGE_KEY, trimmedCode);
-    setDemoAccessCode(trimmedCode);
-    setIsDemoUnlocked(true);
-    setError("");
+    try {
+      const response = await fetch("/api/access", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ demoAccessCode: trimmedCode }),
+      });
+      const payload = (await response.json()) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Code d'acces invalide.");
+      }
+
+      localStorage.setItem(DEMO_ACCESS_STORAGE_KEY, trimmedCode);
+      setDemoAccessCode(trimmedCode);
+      setIsDemoUnlocked(true);
+      setError("");
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Code d'acces invalide.",
+      );
+    }
   }
 
   function updateStartAddress(value: string) {

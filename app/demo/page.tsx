@@ -25,6 +25,9 @@ type InputMode = "scan" | "manual";
 const START_ADDRESS_STORAGE_KEY = "assistant-livraison-start-address";
 const INCLUDE_RETURN_STORAGE_KEY = "assistant-livraison-include-return";
 const LAST_ROUTE_STORAGE_KEY = "assistant-livraison-last-route";
+const DEMO_ACCESS_STORAGE_KEY = "assistant-livraison-demo-access";
+const DEMO_USAGE_STORAGE_KEY = "assistant-livraison-demo-usage";
+const DEMO_MAX_ANALYSES = 3;
 const LAST_ROUTE_TTL_MS = 48 * 60 * 60 * 1000;
 
 type SavedRoute = {
@@ -43,6 +46,9 @@ export default function DemoPage() {
   const [isCompressing, setIsCompressing] = useState(false);
   const [hasSavedRoute, setHasSavedRoute] = useState(false);
   const [includeReturnToStart, setIncludeReturnToStart] = useState(true);
+  const [demoAccessCode, setDemoAccessCode] = useState("");
+  const [isDemoUnlocked, setIsDemoUnlocked] = useState(false);
+  const [analysisCount, setAnalysisCount] = useState(0);
   const manualAddressCount = manualAddresses
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -54,7 +60,25 @@ export default function DemoPage() {
       localStorage.getItem(INCLUDE_RETURN_STORAGE_KEY) !== "false",
     );
     setHasSavedRoute(Boolean(getSavedRoute()));
+    setDemoAccessCode(localStorage.getItem(DEMO_ACCESS_STORAGE_KEY) ?? "");
+    setIsDemoUnlocked(Boolean(localStorage.getItem(DEMO_ACCESS_STORAGE_KEY)));
+    setAnalysisCount(Number(localStorage.getItem(DEMO_USAGE_STORAGE_KEY) ?? "0"));
   }, []);
+
+  function unlockDemo(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmedCode = demoAccessCode.trim();
+
+    if (!trimmedCode) {
+      setError("Entrez le code d'acces.");
+      return;
+    }
+
+    localStorage.setItem(DEMO_ACCESS_STORAGE_KEY, trimmedCode);
+    setDemoAccessCode(trimmedCode);
+    setIsDemoUnlocked(true);
+    setError("");
+  }
 
   function updateStartAddress(value: string) {
     setStartAddress(value);
@@ -172,6 +196,16 @@ export default function DemoPage() {
 
     try {
       const hasManualAddresses = manualAddresses.trim().length > 0;
+      const savedAccessCode =
+        demoAccessCode.trim() || localStorage.getItem(DEMO_ACCESS_STORAGE_KEY) || "";
+
+      if (!savedAccessCode) {
+        throw new Error("Entrez le code d'acces demo.");
+      }
+
+      if (analysisCount >= DEMO_MAX_ANALYSES) {
+        throw new Error("Limite demo atteinte sur ce telephone.");
+      }
 
       if (!files.length && !hasManualAddresses) {
         throw new Error("Scannez un bon ou saisissez au moins une adresse.");
@@ -181,6 +215,7 @@ export default function DemoPage() {
       files.forEach((file) => {
         formData.append("files", file);
       });
+      formData.append("demoAccessCode", savedAccessCode);
       formData.append("startAddress", startAddress);
       formData.append("manualAddresses", manualAddresses);
 
@@ -201,6 +236,9 @@ export default function DemoPage() {
 
       setResult(nextResult);
       saveRoute(nextResult);
+      const nextAnalysisCount = analysisCount + 1;
+      setAnalysisCount(nextAnalysisCount);
+      localStorage.setItem(DEMO_USAGE_STORAGE_KEY, String(nextAnalysisCount));
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -221,7 +259,36 @@ export default function DemoPage() {
           </Link>
         </nav>
 
-        {!result ? (
+        {!isDemoUnlocked ? (
+          <form onSubmit={unlockDemo}>
+            <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft sm:p-6">
+              <h1 className="text-3xl font-bold leading-tight text-ink">
+                Acces demo
+              </h1>
+              <label className="mt-5 block">
+                <span className="text-sm font-semibold text-ink">Code</span>
+                <input
+                  type="password"
+                  value={demoAccessCode}
+                  onChange={(event) => setDemoAccessCode(event.target.value)}
+                  placeholder="Code d'acces"
+                  className="mt-2 w-full rounded-md border border-slate-300 bg-white px-3 py-3 text-sm text-ink shadow-sm placeholder:text-slate-400 focus:border-route"
+                />
+              </label>
+              {error ? (
+                <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
+                </div>
+              ) : null}
+              <button
+                type="submit"
+                className="mt-5 w-full rounded-md bg-ink px-5 py-5 text-lg font-bold text-white shadow-soft"
+              >
+                Entrer
+              </button>
+            </section>
+          </form>
+        ) : !result ? (
           <form onSubmit={analyzeDocument} className="space-y-4">
             <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-soft sm:p-6">
               <h1 className="text-3xl font-bold leading-tight text-ink">
@@ -303,6 +370,9 @@ export default function DemoPage() {
                 {files.length > 1 ? "s" : ""} et {manualAddressCount} adresse
                 {manualAddressCount > 1 ? "s" : ""} saisie
                 {manualAddressCount > 1 ? "s" : ""}.
+                <span className="block">
+                  Essais restants : {Math.max(0, DEMO_MAX_ANALYSES - analysisCount)}
+                </span>
               </div>
 
               {error ? (

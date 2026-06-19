@@ -87,6 +87,19 @@ async function extractWithOcrSpace(file: File): Promise<DeliveryAddress[]> {
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
+    const expectedAccessCode = process.env.DEMO_ACCESS_CODE;
+    const submittedAccessCode = String(formData.get("demoAccessCode") ?? "");
+
+    if (
+      expectedAccessCode &&
+      submittedAccessCode.trim() !== expectedAccessCode.trim()
+    ) {
+      return NextResponse.json(
+        { error: "Code d'acces invalide." },
+        { status: 401 },
+      );
+    }
+
     const manualText = String(formData.get("manualAddresses") ?? "");
     const startAddressText = String(formData.get("startAddress") ?? "").trim();
     const legacyFile = formData.get("file");

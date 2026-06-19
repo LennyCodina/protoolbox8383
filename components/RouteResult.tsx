@@ -26,7 +26,10 @@ export function RouteResult({
   const [route, setRoute] = useState(() => optimizedRoute);
   const [copyLabel, setCopyLabel] = useState("Copier");
   const mapsUrl = useMemo(
-    () => buildGoogleMapsLink(startAddress ? [startAddress, ...route] : route),
+    () =>
+      buildGoogleMapsLink(
+        startAddress ? [startAddress, ...route, startAddress] : route,
+      ),
     [route, startAddress],
   );
 
@@ -67,8 +70,13 @@ export function RouteResult({
     const startText = startAddress
       ? `Depart: ${startAddress.formattedLabel ?? startAddress.label}\n`
       : "";
+    const returnText = startAddress
+      ? `\nRetour: ${startAddress.formattedLabel ?? startAddress.label}`
+      : "";
 
-    await navigator.clipboard.writeText(`${startText}${routeText}\n\n${mapsUrl}`);
+    await navigator.clipboard.writeText(
+      `${startText}${routeText}${returnText}\n\n${mapsUrl}`,
+    );
     setCopyLabel("Copie");
     window.setTimeout(() => setCopyLabel("Copier"), 1600);
   }
@@ -147,6 +155,16 @@ export function RouteResult({
             </div>
           </li>
         ))}
+        {startAddress ? (
+          <li className="rounded-md border border-blue-200 bg-blue-50 p-3">
+            <span className="text-xs font-bold uppercase tracking-wide text-route">
+              Retour
+            </span>
+            <p className="mt-1 text-sm font-semibold text-ink">
+              {startAddress.formattedLabel ?? startAddress.label}
+            </p>
+          </li>
+        ) : null}
       </ol>
 
       <div className="sticky bottom-3 mt-5 grid gap-3 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-soft backdrop-blur sm:grid-cols-2">

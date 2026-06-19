@@ -8,6 +8,7 @@ type FileUploadProps = {
   onFileAdd: (file: File | null) => Promise<boolean>;
   onFileRemove: (index: number) => void;
   onDone: () => void;
+  onAddManualAddress: () => void;
 };
 
 export function FileUpload({
@@ -16,6 +17,7 @@ export function FileUpload({
   onFileAdd,
   onFileRemove,
   onDone,
+  onAddManualAddress,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [showContinueDialog, setShowContinueDialog] = useState(false);
@@ -112,6 +114,16 @@ export function FileUpload({
             </div>
           </div>
         </div>
+      ) : null}
+
+      {files.length ? (
+        <button
+          type="button"
+          onClick={onAddManualAddress}
+          className="mt-3 w-full rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-ink"
+        >
+          Ajouter une adresse a la main
+        </button>
       ) : null}
     </div>
   );

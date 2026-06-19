@@ -249,7 +249,8 @@ export default function DemoPage() {
                     isCompressing={isCompressing}
                     onFileAdd={handleFileAdd}
                     onFileRemove={removeFile}
-                    onDone={() => void analyzeDocument()}
+                    onDone={() => setError("")}
+                    onAddManualAddress={() => setActiveMode("manual")}
                   />
                 ) : (
                   <label className="block">

@@ -45,12 +45,6 @@ export default function HomePage() {
               >
                 Tester maintenant
               </Link>
-              <a
-                href="#fonctionnement"
-                className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-6 py-3 text-base font-semibold text-ink transition hover:border-slate-400"
-              >
-                Voir le fonctionnement
-              </a>
             </div>
           </div>
 

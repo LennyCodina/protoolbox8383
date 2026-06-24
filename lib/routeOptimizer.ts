@@ -1,6 +1,7 @@
 export type DeliveryAddress = {
   id: string;
   label: string;
+  deliveryStatus?: "pending" | "delivered" | "incomplete" | "surplus";
   source?: "mock" | "manual" | "ocr" | "start";
   formattedLabel?: string;
   score?: number;

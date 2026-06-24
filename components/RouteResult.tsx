@@ -11,9 +11,39 @@ type RouteResultProps = {
   onRouteChange?: (route: DeliveryAddress[]) => void;
 };
 
-function relabelAddressIds(route: DeliveryAddress[]) {
+type DeliveryStatus = NonNullable<DeliveryAddress["deliveryStatus"]>;
+type TrackedDeliveryAddress = DeliveryAddress & {
+  deliveryStatus: DeliveryStatus;
+};
+
+const statusOptions: Array<{
+  label: string;
+  value: DeliveryStatus;
+}> = [
+  { label: "A livrer", value: "pending" },
+  { label: "Livre", value: "delivered" },
+  { label: "Incomplet", value: "incomplete" },
+  { label: "Surplus", value: "surplus" },
+];
+
+const statusStyles: Record<DeliveryStatus, string> = {
+  pending: "border-slate-200 bg-slatecard",
+  delivered: "border-green-200 bg-green-50",
+  incomplete: "border-amber-200 bg-amber-50",
+  surplus: "border-blue-200 bg-blue-50",
+};
+
+const statusBadgeStyles: Record<DeliveryStatus, string> = {
+  pending: "bg-slate-200 text-slate-700",
+  delivered: "bg-green-100 text-green-800",
+  incomplete: "bg-amber-100 text-amber-800",
+  surplus: "bg-blue-100 text-blue-800",
+};
+
+function relabelAddressIds(route: DeliveryAddress[]): TrackedDeliveryAddress[] {
   return route.map((address, index) => ({
     ...address,
+    deliveryStatus: address.deliveryStatus ?? "pending",
     id: address.id || `address-${index + 1}`,
   }));
 }
@@ -27,6 +57,9 @@ export function RouteResult({
   const [optimizedRoute] = useState(() => relabelAddressIds(initialRoute));
   const [route, setRoute] = useState(() => optimizedRoute);
   const [copyLabel, setCopyLabel] = useState("Copier");
+  const completedCount = route.filter(
+    (address) => (address.deliveryStatus ?? "pending") !== "pending",
+  ).length;
   const mapsUrl = useMemo(
     () =>
       buildGoogleMapsLink(
@@ -42,8 +75,9 @@ export function RouteResult({
   );
 
   function updateRoute(nextRoute: DeliveryAddress[]) {
-    setRoute(nextRoute);
-    onRouteChange?.(nextRoute);
+    const trackedRoute = relabelAddressIds(nextRoute);
+    setRoute(trackedRoute);
+    onRouteChange?.(trackedRoute);
   }
 
   function updateAddress(indexToUpdate: number, label: string) {
@@ -71,9 +105,27 @@ export function RouteResult({
     updateRoute(route.filter((_, index) => index !== indexToRemove));
   }
 
+  function updateDeliveryStatus(
+    indexToUpdate: number,
+    deliveryStatus: DeliveryStatus,
+  ) {
+    updateRoute(
+      route.map((address, index) =>
+        index === indexToUpdate ? { ...address, deliveryStatus } : address,
+      ),
+    );
+  }
+
   async function copyRoute() {
     const routeText = route
-      .map((address, index) => `${index + 1}. ${address.formattedLabel ?? address.label}`)
+      .map((address, index) => {
+        const status = statusOptions.find(
+          (option) =>
+            option.value === (address.deliveryStatus ?? "pending"),
+        )?.label;
+
+        return `${index + 1}. ${address.formattedLabel ?? address.label} - ${status}`;
+      })
       .join("\n");
     const startText = startAddress
       ? `Depart: ${startAddress.formattedLabel ?? startAddress.label}\n`
@@ -103,10 +155,24 @@ export function RouteResult({
           <p className="mt-1 text-sm text-slate-500">
             Modifiez l'ordre ou corrigez une adresse avant d'ouvrir Maps.
           </p>
+          <p className="mt-2 text-sm font-bold text-ink">
+            {completedCount} / {route.length} destination
+            {route.length > 1 ? "s" : ""} traitee
+            {completedCount > 1 ? "s" : ""}
+          </p>
         </div>
         <button
           type="button"
-          onClick={() => updateRoute(optimizedRoute)}
+          onClick={() =>
+            updateRoute(
+              optimizedRoute.map((address) => ({
+                ...address,
+                deliveryStatus:
+                  route.find((current) => current.id === address.id)
+                    ?.deliveryStatus ?? address.deliveryStatus,
+              })),
+            )
+          }
           className="rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-ink"
         >
           Optimiser
@@ -125,46 +191,96 @@ export function RouteResult({
           </li>
         ) : null}
 
-        {route.map((address, index) => (
-          <li key={`${address.id}-${index}`} className="rounded-md bg-slatecard p-3">
-            <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-route text-sm font-bold text-white">
-                {index + 1}
-              </span>
-              <textarea
-                value={address.formattedLabel ?? address.label}
-                onChange={(event) => updateAddress(index, event.target.value)}
-                rows={2}
-                className="min-h-16 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium leading-6 text-ink"
-              />
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => moveAddress(index, -1)}
-                disabled={index === 0}
-                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-ink disabled:opacity-40"
-              >
-                Monter
-              </button>
-              <button
-                type="button"
-                onClick={() => moveAddress(index, 1)}
-                disabled={index === route.length - 1}
-                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-ink disabled:opacity-40"
-              >
-                Baisser
-              </button>
-              <button
-                type="button"
-                onClick={() => removeAddress(index)}
-                className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-700"
-              >
-                Retirer
-              </button>
-            </div>
-          </li>
-        ))}
+        {route.map((address, index) => {
+          const deliveryStatus = address.deliveryStatus ?? "pending";
+          const statusLabel =
+            statusOptions.find((option) => option.value === deliveryStatus)
+              ?.label ?? "A livrer";
+
+          return (
+            <li
+              key={`${address.id}-${index}`}
+              className={`rounded-md border p-3 ${statusStyles[deliveryStatus]}`}
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-route text-sm font-bold text-white">
+                  {index + 1}
+                </span>
+                <textarea
+                  value={address.formattedLabel ?? address.label}
+                  onChange={(event) => updateAddress(index, event.target.value)}
+                  rows={2}
+                  className="min-h-16 w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium leading-6 text-ink"
+                />
+              </div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <label className="flex items-center gap-2 text-sm font-bold text-ink">
+                  <input
+                    type="checkbox"
+                    checked={deliveryStatus !== "pending"}
+                    onChange={(event) =>
+                      updateDeliveryStatus(
+                        index,
+                        event.target.checked ? "delivered" : "pending",
+                      )
+                    }
+                    className="h-5 w-5 accent-green-600"
+                  />
+                  Destination traitee
+                </label>
+                <span
+                  className={`w-fit rounded-md px-2 py-1 text-xs font-bold ${statusBadgeStyles[deliveryStatus]}`}
+                >
+                  {statusLabel}
+                </span>
+              </div>
+              {deliveryStatus !== "pending" ? (
+                <div className="mt-2 grid grid-cols-3 gap-1">
+                  {statusOptions.slice(1).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => updateDeliveryStatus(index, option.value)}
+                      aria-pressed={deliveryStatus === option.value}
+                      className={`rounded-md border px-2 py-2 text-xs font-bold ${
+                        deliveryStatus === option.value
+                          ? statusBadgeStyles[option.value]
+                          : "border-slate-300 bg-white text-slate-700"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => moveAddress(index, -1)}
+                  disabled={index === 0}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-ink disabled:opacity-40"
+                >
+                  Monter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveAddress(index, 1)}
+                  disabled={index === route.length - 1}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-ink disabled:opacity-40"
+                >
+                  Baisser
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeAddress(index)}
+                  className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-700"
+                >
+                  Retirer
+                </button>
+              </div>
+            </li>
+          );
+        })}
         {startAddress ? (
           <li className="rounded-md border border-blue-200 bg-blue-50 p-3">
             <span className="text-xs font-bold uppercase tracking-wide text-route">

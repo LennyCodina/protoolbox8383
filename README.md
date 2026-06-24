@@ -8,10 +8,40 @@ Google Maps.
 
 ```bash
 npm install
+npm run auth:hash
 npm run dev
 ```
 
 Ouvrir ensuite `http://localhost:3000`.
+
+## Authentification
+
+Toutes les pages et API sont protegees par une session serveur de 7 jours.
+Les mots de passe sont hashes avec `scrypt` et ne sont jamais envoyes au
+navigateur.
+
+Generer une entree utilisateur :
+
+```bash
+npm run auth:hash
+```
+
+Puis configurer `.env.local` :
+
+```bash
+AUTH_USERS_JSON=[{"username":"paul","passwordHash":"scrypt$..."}]
+SESSION_SECRET=une-valeur-aleatoire-de-32-caracteres-minimum
+SESSION_VERSION=1
+OCR_SPACE_API_KEY=votre_cle_ocr_space
+```
+
+Pour plusieurs utilisateurs, placer plusieurs objets dans le tableau JSON.
+Pour deconnecter toutes les sessions existantes, incrementer
+`SESSION_VERSION`.
+
+Sur Vercel, ajouter les memes variables dans **Settings > Environment
+Variables**, puis effectuer un nouveau deploiement. Ne jamais prefixer ces
+variables avec `NEXT_PUBLIC_`.
 
 ## Pages
 

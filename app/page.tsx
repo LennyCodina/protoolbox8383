@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LogoutButton } from "@/components/LogoutButton";
 
 const steps = [
   "Prenez une photo ou importez un PDF",
@@ -14,12 +15,15 @@ export default function HomePage() {
           <span className="text-sm font-bold uppercase tracking-wide text-ink">
             Assistant Livraison IA
           </span>
-          <Link
-            href="/demo"
-            className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-          >
-            Tester
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/demo"
+              className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+            >
+              Tester
+            </Link>
+            <LogoutButton />
+          </div>
         </nav>
 
         <div className="grid flex-1 items-center gap-10 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:py-16">
